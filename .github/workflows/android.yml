@@ -1,0 +1,74 @@
+name: Android
+
+on:
+  push:
+    branches: [ android, main ]
+    paths: [ 'android/**', '.github/workflows/android.yml' ]
+  pull_request:
+    paths: [ 'android/**', '.github/workflows/android.yml' ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-35 build-tools;35.0.0'
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Unit tests
+        run: ./gradlew --no-daemon testDebugUnitTest
+      - name: Build debug APK
+        run: ./gradlew --no-daemon assembleDebug
+      - name: APK info (permissions, versionCode, signer)
+        run: |
+          APK=app/build/outputs/apk/debug/app-debug.apk
+          $ANDROID_HOME/build-tools/35.0.0/aapt2 dump badging $APK | grep -E "package:|uses-permission|sdkVersion|targetSdk"
+          $ANDROID_HOME/build-tools/35.0.0/apksigner verify --print-certs $APK | head -5
+          sha256sum $APK; ls -l $APK
+      - uses: actions/upload-artifact@v4
+        with:
+          name: PostClip-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: unit-test-results
+          path: android/app/build/test-results/
+
+  range-harness:
+    # Off-device check of the range logic: app's core code + NewPipe resolve, ffmpeg cuts only the range.
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    defaults:
+      run:
+        working-directory: android
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install ffmpeg
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+      - name: Build harness + run core JVM tests
+        run: ./gradlew --no-daemon -p tools/range-harness test installDist
+      - name: Range tests
+        run: mkdir -p tools/range-harness/out && OUT=out tools/range-harness/run_range_tests.sh 2>&1 | tee tools/range-harness/out/report.txt
+        shell: bash
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: range-harness-output
+          path: |
+            android/tools/range-harness/out/*.txt
+            android/tools/range-harness/out/*.mp4
+            android/tools/range-harness/out/*.err
