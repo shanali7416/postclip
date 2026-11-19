@@ -22,3 +22,22 @@ class SizeEstimateTest {
         assertEquals(0L, SizeEstimate.clipBytes(1000, 100, 0))
     }
 }
+
+class FullVideoEstimateTest {
+    @Test fun usesReportedStreamSizes() {
+        assertEquals(250_000_000L, SizeEstimate.fullVideoBytes(250_000_000L, 3600, 2_000_000))
+    }
+    @Test fun fallsBackToBitrateTimesDuration() {
+        // 2 Mbit/s for 10 minutes = 250 KB/s x 600 s = 150 MB
+        assertEquals(150_000_000L, SizeEstimate.fullVideoBytes(0, 600, 2_000_000))
+    }
+    @Test fun unknownIsZero() {
+        assertEquals(0L, SizeEstimate.fullVideoBytes(0, 600, 0))
+        assertEquals(0L, SizeEstimate.fullVideoBytes(0, 0, 2_000_000))
+    }
+    @Test fun clipNeverEstimatesFullSize() {
+        // a 30 s clip of a 1 h video is 1/120th of the full estimate
+        val full = SizeEstimate.fullVideoBytes(360_000_000L, 3600, 0)
+        assertEquals(full / 120, SizeEstimate.clipBytes(360_000_000L, 3600, 30))
+    }
+}

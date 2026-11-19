@@ -118,12 +118,12 @@ class ClipDownloadService : Service() {
                             val size = out.length()
                             out.delete()
                             DownloadRepository.update(DownloadState.Done(uri, "Download/PostClip/$name", size, r.durationMs))
-                            notifyDone(uri, name, size)
+                            notifyDone(uri, name, size, j.fullVideo)
                         } catch (e: Exception) {
-                            DownloadRepository.update(DownloadState.Failed("Could not save the clip: ${e.message}"))
+                            DownloadRepository.update(DownloadState.Failed("Could not save the file: ${e.message}"))
                         }
                     },
-                    onFailure = { e -> DownloadRepository.update(DownloadState.Failed(e.message ?: "Clip failed.")) }
+                    onFailure = { e -> DownloadRepository.update(DownloadState.Failed(e.message ?: "Download failed.")) }
                 )
                 stopEverything()
             })
@@ -132,6 +132,7 @@ class ClipDownloadService : Service() {
 
     private fun fileName(j: ClipJob): String {
         val safe = j.title.replace(Regex("[^A-Za-z0-9 _-]"), "").trim().take(40).ifEmpty { j.videoId }
+        if (j.fullVideo) return "PostClip_${safe}_full.mp4".replace(' ', '_')
         val range = TimeFormat.format(j.startSec).replace(":", ".") + "-" + TimeFormat.format(j.endSec).replace(":", ".")
         return "PostClip_${safe}_$range.mp4".replace(' ', '_')
     }
@@ -152,7 +153,7 @@ class ClipDownloadService : Service() {
         }
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_clip)
-            .setContentTitle(if (s == null) "PostClip" else "Clipping ${s.percent}%" + if (s.attempt > 1) " (retry)" else "")
+            .setContentTitle(if (s == null) "PostClip" else (if (job?.fullVideo == true) "Downloading ${s.percent}%" else "Clipping ${s.percent}%") + if (s.attempt > 1) " (retry)" else "")
             .setContentText(text)
             .setSubText(job?.title)
             .setOngoing(true)
@@ -163,12 +164,12 @@ class ClipDownloadService : Service() {
             .build()
     }
 
-    private fun notifyDone(uri: android.net.Uri, name: String, size: Long) {
+    private fun notifyDone(uri: android.net.Uri, name: String, size: Long, full: Boolean) {
         val open = pending(ClipSaver.openIntent(uri), 3, true)
         val share = pending(ClipSaver.shareIntent(uri), 4, true)
         val n = NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_stat_clip)
-            .setContentTitle("Clip saved")
+            .setContentTitle(if (full) "Video saved" else "Clip saved")
             .setContentText("$name · ${SizeEstimate.formatBytes(size)}")
             .setContentIntent(open)
             .setAutoCancel(true)

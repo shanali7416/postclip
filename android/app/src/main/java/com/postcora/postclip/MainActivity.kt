@@ -16,11 +16,12 @@ import com.postcora.postclip.ui.PostClipTheme
 @UnstableApi
 class MainActivity : ComponentActivity() {
     private val vm: MainViewModel by viewModels()
+    private var pendingFull = false
 
     // On Android 13+ ask for notifications; if denied, the download still runs (no progress notification).
     private val notifPermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { }
     private val storagePermission = registerForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
-        if (granted) vm.startDownload()
+        if (granted) vm.startDownload(pendingFull)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,7 +48,8 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    private fun requestAndDownload() {
+    private fun requestAndDownload(full: Boolean) {
+        pendingFull = full
         if (Build.VERSION.SDK_INT >= 33 &&
             checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
             notifPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
@@ -57,6 +59,6 @@ class MainActivity : ComponentActivity() {
             storagePermission.launch(Manifest.permission.WRITE_EXTERNAL_STORAGE)
             return
         }
-        vm.startDownload()
+        vm.startDownload(full)
     }
 }

@@ -9,6 +9,7 @@ import com.postcora.postclip.core.ClipValidation
 import com.postcora.postclip.core.SizeEstimate
 import com.postcora.postclip.core.StreamSelector
 import com.postcora.postclip.core.TimeFormat
+import com.postcora.postclip.core.TimeInput
 import com.postcora.postclip.core.TimeParse
 import com.postcora.postclip.core.UnsupportedVideoException
 import com.postcora.postclip.core.VideoMeta
@@ -37,6 +38,9 @@ data class UiState(
     val crop916: Boolean = false,
     val rangeError: String? = null,
     val estimateBytes: Long = 0,
+    val fullEstimateBytes: Long = 0,
+    /** Kind of the last started download, so Try again / Download again repeats it. */
+    val lastFull: Boolean = false,
     val usesDash: Boolean = true,
     val preparing: Boolean = false,
 )
@@ -83,8 +87,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         else -> "Could not read this video: ${e.message ?: e.javaClass.simpleName}"
     }
 
-    fun setStart(s: String) { _ui.value = _ui.value.copy(startText = s); recompute() }
-    fun setEnd(s: String) { _ui.value = _ui.value.copy(endText = s); recompute() }
+    fun setStart(s: String) { _ui.value = _ui.value.copy(startText = TimeInput.reformat(_ui.value.startText, s)); recompute() }
+    fun setEnd(s: String) { _ui.value = _ui.value.copy(endText = TimeInput.reformat(_ui.value.endText, s)); recompute() }
     fun setCrop(b: Boolean) { _ui.value = _ui.value.copy(crop916 = b) }
     fun setHeight(h: Int) { _ui.value = _ui.value.copy(selectedHeight = h); recompute() }
 
@@ -105,24 +109,35 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             else -> ClipValidation.validate((s as TimeParse.Ok).seconds, (e as TimeParse.Ok).seconds, i.duration)
         }
         var est = 0L
+        var fullEst = 0L
         var dash = true
         try {
             val plan = StreamSelector.plan(i, u.selectedHeight)
             dash = !plan.progressive
+            fullEst = SizeEstimate.fullVideoBytes(plan.fullBytes, i.duration, plan.totalBitrate)
             if (err == null) {
                 val clip = (e as TimeParse.Ok).seconds - (s as TimeParse.Ok).seconds
                 est = SizeEstimate.clipBytes(plan.fullBytes, i.duration, clip, plan.totalBitrate)
             }
         } catch (_: Exception) { }
-        _ui.value = u.copy(rangeError = err, estimateBytes = est, usesDash = dash)
+        _ui.value = u.copy(rangeError = err, estimateBytes = est, fullEstimateBytes = fullEst, usesDash = dash)
     }
 
-    fun startDownload() {
+    /**
+     * [full] = false: clip range only (default; never fetches the full video).
+     * [full] = true: the separate "Download full video" button — whole length at the chosen quality.
+     */
+    fun startDownload(full: Boolean = false) {
         val u = _ui.value
-        if (u.rangeError != null || info == null || _ui.value.preparing) return
-        val start = TimeFormat.parseSeconds(u.startText) ?: return
-        val end = TimeFormat.parseSeconds(u.endText) ?: return
-        _ui.value = u.copy(preparing = true)
+        if (info == null || u.preparing) return
+        var start = 0L
+        var end = 0L
+        if (!full) {
+            if (u.rangeError != null) return
+            start = TimeFormat.parseSeconds(u.startText) ?: return
+            end = TimeFormat.parseSeconds(u.endText) ?: return
+        }
+        _ui.value = u.copy(preparing = true, lastFull = full)
         viewModelScope.launch {
             try {
                 // Stream URLs expire after a few hours: re-resolve if the info is older than 30 minutes
@@ -135,8 +150,14 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 val i = info!!
                 val plan = StreamSelector.plan(i, u.selectedHeight)
-                val est = SizeEstimate.clipBytes(plan.fullBytes, i.duration, end - start, plan.totalBitrate)
-                val job = ClipJob(i.id, i.name, plan, start, end, u.crop916, est)
+                val job = if (full) {
+                    ClipJob(i.id, i.name, plan, 0L, i.duration, crop916 = false,
+                        estimatedBytes = SizeEstimate.fullVideoBytes(plan.fullBytes, i.duration, plan.totalBitrate),
+                        fullVideo = true)
+                } else {
+                    val est = SizeEstimate.clipBytes(plan.fullBytes, i.duration, end - start, plan.totalBitrate)
+                    ClipJob(i.id, i.name, plan, start, end, u.crop916, est)
+                }
                 ClipDownloadService.start(getApplication(), job)
             } catch (e: Exception) {
                 DownloadRepository.update(com.postcora.postclip.download.DownloadState.Failed(friendly(e)))

@@ -14,6 +14,8 @@ data class ClipJob(
     val endSec: Long,
     val crop916: Boolean,
     val estimatedBytes: Long,
+    /** true = "Download full video" (whole length, no clipping, no crop); false = clip range only. */
+    val fullVideo: Boolean = false,
 ) {
     val clipSec: Long get() = endSec - startSec
 }

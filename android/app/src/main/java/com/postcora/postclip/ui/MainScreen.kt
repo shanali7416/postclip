@@ -4,6 +4,7 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -50,7 +52,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.TextRange
+import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -66,7 +71,7 @@ import com.postcora.postclip.download.DownloadState
 @UnstableApi
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun MainScreen(vm: MainViewModel, onDownload: () -> Unit) {
+fun MainScreen(vm: MainViewModel, onDownload: (full: Boolean) -> Unit) {
     val ui by vm.ui.collectAsStateWithLifecycle()
     val dl by vm.download.collectAsStateWithLifecycle()
     var showAbout by remember { mutableStateOf(false) }
@@ -74,7 +79,7 @@ fun MainScreen(vm: MainViewModel, onDownload: () -> Unit) {
 
     Scaffold { pad ->
         Column(
-            Modifier.fillMaxSize().padding(pad).verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
+            Modifier.fillMaxSize().padding(pad).imePadding().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -111,12 +116,10 @@ fun MainScreen(vm: MainViewModel, onDownload: () -> Unit) {
 
                 Text("Clip range", style = MaterialTheme.typography.titleMedium)
                 Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                    OutlinedTextField(ui.startText, vm::setStart, Modifier.weight(1f), label = { Text("Start (h:mm:ss)") },
-                        singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
-                    OutlinedTextField(ui.endText, vm::setEnd, Modifier.weight(1f), label = { Text("End (h:mm:ss)") },
-                        singleLine = true, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number))
+                    TimeField(ui.startText, vm::setStart, "Start (h:mm:ss)", Modifier.weight(1f))
+                    TimeField(ui.endText, vm::setEnd, "End (h:mm:ss)", Modifier.weight(1f))
                 }
-                Text("Hours:minutes:seconds — m:ss also works (0:30 = 30 seconds).", style = MaterialTheme.typography.bodySmall)
+                Text("Type numbers only — 1646 = 16:46, 11646 = 1:16:46", style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     ClipValidation.PRESETS.forEach { p ->
                         OutlinedButton(onClick = { vm.applyPreset(p) }) { Text("${p}s") }
@@ -135,9 +138,22 @@ fun MainScreen(vm: MainViewModel, onDownload: () -> Unit) {
                         style = MaterialTheme.typography.bodySmall)
                 }
 
-                DownloadArea(dl, ui.rangeError == null && !ui.preparing, onDownload, vm::cancel,
+                DownloadArea(dl, ui.rangeError == null && !ui.preparing, !ui.preparing, ui.lastFull,
+                    onDownload = onDownload, onCancel = vm::cancel,
                     onOpen = { uri -> launch(context, ClipSaver.openIntent(uri)) },
                     onShare = { uri -> launch(context, ClipSaver.shareIntent(uri)) })
+
+                // Separate, secondary option. The clip button above never fetches the full video.
+                if (dl !is DownloadState.Running) {
+                    OutlinedButton(onClick = { onDownload(true) }, enabled = !ui.preparing, modifier = Modifier.fillMaxWidth()) {
+                        Text("Download full video (${ui.selectedHeight}p)")
+                    }
+                    Text(
+                        (if (ui.fullEstimateBytes > 0) "Full video ≈${SizeEstimate.formatBytes(ui.fullEstimateBytes)}" else "Full video size unknown") +
+                            " · whole ${TimeFormat.format(meta.durationSeconds)} at the chosen quality, no crop",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
             }
 
             Spacer(Modifier.height(8.dp))
@@ -146,12 +162,46 @@ fun MainScreen(vm: MainViewModel, onDownload: () -> Unit) {
                     "Ended videos only — live streams, private, DRM or login-walled videos are not supported.",
                 style = MaterialTheme.typography.bodySmall,
             )
+
+            // Subtle footer at the end of the scrolling content (never overlaps the form or the keyboard).
+            Row(
+                Modifier.fillMaxWidth().padding(top = 8.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Created by ", style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "PostCora.com",
+                    style = MaterialTheme.typography.labelSmall.copy(textDecoration = TextDecoration.Underline),
+                    color = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.clickable(onClickLabel = "Open postcora.com") {
+                        launch(context, Intent(Intent.ACTION_VIEW, Uri.parse("https://postcora.com")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+                    }.padding(vertical = 6.dp),
+                )
+            }
         }
     }
 
     if (showAbout) AboutDialog(onDismiss = { showAbout = false }, onLink = {
         launch(context, Intent(Intent.ACTION_VIEW, Uri.parse("https://postcora.com")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     })
+}
+
+/**
+ * Timer-style time field: the ViewModel formats the digits (1646 -> 16:46), and the cursor is always kept
+ * at the end so typing and backspace act on the last digit.
+ */
+@Composable
+private fun TimeField(text: String, onChange: (String) -> Unit, label: String, modifier: Modifier = Modifier) {
+    OutlinedTextField(
+        value = TextFieldValue(text, TextRange(text.length)),
+        onValueChange = { if (it.text != text) onChange(it.text) },
+        modifier = modifier,
+        label = { Text(label) },
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+    )
 }
 
 private fun launch(context: android.content.Context, intent: Intent) {
@@ -178,7 +228,8 @@ private fun QualityPicker(heights: List<Int>, selected: Int, onSelect: (Int) -> 
 
 @Composable
 private fun DownloadArea(
-    dl: DownloadState, canStart: Boolean, onDownload: () -> Unit, onCancel: () -> Unit,
+    dl: DownloadState, canStartClip: Boolean, canStartFull: Boolean, lastFull: Boolean,
+    onDownload: (full: Boolean) -> Unit, onCancel: () -> Unit,
     onOpen: (Uri) -> Unit, onShare: (Uri) -> Unit,
 ) {
     when (dl) {
@@ -197,22 +248,25 @@ private fun DownloadArea(
         }
         is DownloadState.Done -> Card(Modifier.fillMaxWidth()) {
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Clip saved", fontWeight = FontWeight.SemiBold)
+                Text(if (lastFull) "Video saved" else "Clip saved", fontWeight = FontWeight.SemiBold)
                 Text("${dl.displayPath} · ${SizeEstimate.formatBytes(dl.sizeBytes)}", style = MaterialTheme.typography.bodySmall)
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     Button(onClick = { onOpen(dl.uri) }) { Text("Open") }
                     OutlinedButton(onClick = { onShare(dl.uri) }) { Text("Share") }
-                    TextButton(onClick = onDownload, enabled = canStart) { Text("Download again") }
+                    TextButton(onClick = { onDownload(lastFull) }, enabled = if (lastFull) canStartFull else canStartClip) { Text("Download again") }
                 }
             }
         }
         is DownloadState.Failed -> Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(dl.message, color = MaterialTheme.colorScheme.error)
-            Button(onClick = onDownload, enabled = canStart, modifier = Modifier.fillMaxWidth()) { Text("Try again") }
+            Button(onClick = { onDownload(lastFull) }, enabled = if (lastFull) canStartFull else canStartClip,
+                modifier = Modifier.fillMaxWidth()) { Text(if (lastFull) "Try again (full video)" else "Try again") }
+            if (lastFull) OutlinedButton(onClick = { onDownload(false) }, enabled = canStartClip,
+                modifier = Modifier.fillMaxWidth()) { Text("Download clip") }
         }
         else -> {
             if (dl is DownloadState.Cancelled) Text("Download cancelled.", style = MaterialTheme.typography.bodySmall)
-            Button(onClick = onDownload, enabled = canStart, modifier = Modifier.fillMaxWidth()) { Text("Download clip") }
+            Button(onClick = { onDownload(false) }, enabled = canStartClip, modifier = Modifier.fillMaxWidth()) { Text("Download clip") }
         }
     }
 }

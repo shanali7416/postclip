@@ -23,11 +23,11 @@ class TimeFormatTest {
     }
 
     @Test fun rejectsInvalid() {
-        for (bad in listOf("", "abc", "1:60", "1:61:00", "1:05:60", "1::10", "1:2:3:4", "-5", "1:0a", "1.5")) {
+        for (bad in listOf("", "abc", "1:60", "1:61:00", "1:05:60", "1::10", "1:2:3:4", "-5", "1:0a", "1..")) {
             assertTrue("expected error for '$bad'", TimeFormat.parse(bad) is TimeParse.Error)
         }
-        assertEquals("Seconds must be less than 60", (TimeFormat.parse("0:75") as TimeParse.Error).message)
-        assertEquals("Minutes must be less than 60", (TimeFormat.parse("1:75:00") as TimeParse.Error).message)
+        assertEquals(TimeFormat.UNDER_60, (TimeFormat.parse("0:75") as TimeParse.Error).message)
+        assertEquals(TimeFormat.UNDER_60, (TimeFormat.parse("1:75:00") as TimeParse.Error).message)
     }
 
     @Test fun formatsRoundTrip() {

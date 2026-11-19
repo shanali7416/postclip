@@ -18,6 +18,16 @@ object SizeEstimate {
         return 0
     }
 
+    /**
+     * Estimated bytes for a "Download full video": the full stream sizes (video + audio) when YouTube reports
+     * them, else total bitrate (bits/s) x video duration. 0 when neither is known.
+     */
+    fun fullVideoBytes(fullBytes: Long, durationSeconds: Long, bitrateBps: Long = 0): Long {
+        if (fullBytes > 0) return fullBytes
+        if (bitrateBps > 0 && durationSeconds > 0) return bitrateBps / 8 * durationSeconds
+        return 0
+    }
+
     fun formatBytes(bytes: Long): String {
         val b = bytes.toDouble()
         return when {

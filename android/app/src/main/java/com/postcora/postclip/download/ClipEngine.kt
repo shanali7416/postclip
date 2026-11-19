@@ -44,7 +44,9 @@ import java.io.IOException
 
 /**
  * Cuts [ClipJob]'s range straight from the remote YouTube streams with Media3 Transformer.
- * Only the clip range is fetched (HTTP Range requests); the full video is never downloaded.
+ * Clip jobs fetch only the clip range (HTTP Range requests); the full video is never downloaded for a clip.
+ * Full-video jobs ([ClipJob.fullVideo], the separate "Download full video" button) run the same pipeline
+ * without clipping, so progress is measured against the full length.
  *
  * Attempt 1: two-sequence Composition (video-only MP4 + m4a audio), identical ClippingConfiguration
  *            for both (audio end clamped to the audio length), audio re-encoded to AAC, video to H.264,
@@ -122,7 +124,9 @@ class ClipEngine(
         transformer?.cancel()
     }
 
-    private fun clipping(endMs: Long) = MediaItem.ClippingConfiguration.Builder()
+    private fun clipping(endMs: Long): MediaItem.ClippingConfiguration =
+        if (job.fullVideo) MediaItem.ClippingConfiguration.UNSET
+        else MediaItem.ClippingConfiguration.Builder()
         .setStartPositionMs(job.startSec * 1000)
         .setEndPositionMs(endMs)
         .build()
@@ -134,10 +138,11 @@ class ClipEngine(
     }
 
     /** Whether the audio stream covers any of the clip (else the clip is video-only, no crash). */
-    private fun audioUsable(): Boolean = job.plan.audio != null && audioEndMs() > job.startSec * 1000 + 100
+    private fun audioUsable(): Boolean =
+        job.plan.audio != null && (job.fullVideo || audioEndMs() > job.startSec * 1000 + 100)
 
     private fun videoEffects(forceTranscode: Boolean): List<androidx.media3.common.Effect> = when {
-        job.crop916 -> listOf(Presentation.createForAspectRatio(9f / 16f, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP))
+        job.crop916 && !job.fullVideo -> listOf(Presentation.createForAspectRatio(9f / 16f, Presentation.LAYOUT_SCALE_TO_FIT_WITH_CROP))
         forceTranscode && job.plan.video.height > 0 -> listOf(Presentation.createForHeight(job.plan.video.height))
         else -> emptyList()
     }
@@ -203,10 +208,12 @@ class ClipEngine(
                 fun prog(url: String) = ProgressiveMediaSource.Factory(dsf)
                     .setLoadErrorHandlingPolicy(loadErrorPolicy)
                     .createMediaSource(MediaItem.fromUri(url))
-                val video = ClippingMediaSource(prog(job.plan.video.url), startUs, job.endSec * 1_000_000)
+                val video: MediaSource = if (job.fullVideo) prog(job.plan.video.url)
+                    else ClippingMediaSource(prog(job.plan.video.url), startUs, job.endSec * 1_000_000)
                 val audio = job.plan.audio
                 if (audio == null || job.plan.progressive || !audioUsable()) return video
-                val audioSrc = ClippingMediaSource(prog(audio.url), startUs, audioEndMs() * 1000)
+                val audioSrc: MediaSource = if (job.fullVideo) prog(audio.url)
+                    else ClippingMediaSource(prog(audio.url), startUs, audioEndMs() * 1000)
                 return MergingMediaSource(/* adjustPeriodTimeOffsets= */ true, /* clipDurations= */ false, video, audioSrc)
             }
         }
@@ -233,7 +240,7 @@ class ClipEngine(
     private fun handleFailure(message: String, cause: Throwable?) {
         if (cancelled) return
         if (attempt == 1) {
-            // Retry once with the full-transcode merged pipeline. Never falls back to a full download.
+            // Retry once with the full-transcode merged pipeline. A clip never falls back to a full download.
             transformer = null
             main.postDelayed({ if (!cancelled) run(2) }, 1_500)
             return
@@ -245,15 +252,15 @@ class ClipEngine(
     private fun describe(e: ExportException): String = when (e.errorCode) {
         ExportException.ERROR_CODE_IO_NETWORK_CONNECTION_FAILED,
         ExportException.ERROR_CODE_IO_NETWORK_CONNECTION_TIMEOUT ->
-            "Network connection lost while fetching the clip."
+            "Network connection lost while downloading."
         ExportException.ERROR_CODE_IO_BAD_HTTP_STATUS ->
             "YouTube refused the request (the link may have expired)."
         ExportException.ERROR_CODE_MUXING_FAILED, ExportException.ERROR_CODE_MUXING_TIMEOUT ->
             "Could not write the MP4 (muxer error) even after a full re-encode."
         ExportException.ERROR_CODE_ENCODER_INIT_FAILED, ExportException.ERROR_CODE_DECODER_INIT_FAILED ->
             "This phone's video codec could not process this quality. Try a lower quality."
-        else -> "Clip failed: ${e.errorCodeName}"
-    } + " Only the selected range is fetched; tap Try again."
+        else -> (if (job.fullVideo) "Download failed: " else "Clip failed: ") + e.errorCodeName
+    } + (if (job.fullVideo) " Tap Try again." else " Only the selected range is fetched; tap Try again.")
 
     /** Ticks every 500 ms: progress (based on clip duration), MB, speed, ETA, and a stall detector. */
     private val progressTicker = object : Runnable {
@@ -276,13 +283,18 @@ class ClipEngine(
             val elapsed = (now - startedAt) / 1000.0
             val eta = if (percent in 1..99) ((elapsed * (100 - percent)) / percent).toLong() else null
             onProgress(DownloadState.Running(percent, b, job.estimatedBytes, speed, eta, attempt,
-                if (attempt == 1) "Fetching clip range" else "Retrying with full re-encode"))
+                when {
+                    attempt > 1 -> "Retrying with full re-encode"
+                    job.fullVideo -> "Downloading full video"
+                    else -> "Fetching clip range"
+                }))
             // Neither network bytes nor progress for 3 minutes: give up on this attempt.
             if (t != null && now - lastChangeAt > 180_000) {
                 lastChangeAt = now
                 t.cancel()
                 transformer = null
-                main.post { handleFailure("The download stalled (no data for 3 minutes). Only the selected range is fetched; tap Try again.", null) }
+                val hint = if (job.fullVideo) "Tap Try again." else "Only the selected range is fetched; tap Try again."
+                main.post { handleFailure("The download stalled (no data for 3 minutes). $hint", null) }
                 if (attempt == 1) main.postDelayed(this, 2_000)
                 return
             }
