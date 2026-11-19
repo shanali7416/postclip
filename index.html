@@ -1,0 +1,904 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="color-scheme" content="light dark" />
+<link rel="icon" href="data:," />
+<title>PostClip by PostCora — YouTube Live &amp; VOD Clips</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet" />
+<style>
+  :root{
+    --bg:#f3f3f0; --surface:#ffffff; --surface2:#ececea; --ink:#17191d; --muted:#5c6169;
+    --line:#dddcd4; --accent:#d92315; --accent-dark:#b01a0f; --accent-ink:#ffffff;
+    --ok:#0d7a3e; --warn:#9a6200; --chip:#ececea; --rec:#d92315;
+    --shadow:0 10px 30px rgba(20,20,20,.08);
+  }
+  @media (prefers-color-scheme: dark){
+    :root{
+      --bg:#0d0e11; --surface:#16181d; --surface2:#1e2127; --ink:#f1f1ec; --muted:#a2a7b0;
+      --line:#2a2e36; --accent:#ff4438; --accent-dark:#ff6a5e; --accent-ink:#ffffff;
+      --ok:#3ecf7e; --warn:#ffb84d; --chip:#22252c; --rec:#ff4438;
+      --shadow:0 10px 30px rgba(0,0,0,.4);
+    }
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font-family:"Archivo",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+  .mono{font-family:"JetBrains Mono",ui-monospace,monospace}
+  button,[role="button"],select,input:not([type="checkbox"]){min-height:44px}
+  button{font:inherit;cursor:pointer}
+  a{color:var(--accent)}
+  .wrap{max-width:1060px;margin:0 auto;padding:20px 16px 64px}
+
+  /* ---------- header ---------- */
+  header.top{padding:10px 0 4px}
+  .brand{display:flex;align-items:center;gap:12px}
+  .brandmark{width:44px;height:44px;border-radius:12px;background:var(--accent);color:#fff;
+    display:flex;align-items:center;justify-content:center;flex:none}
+  .brandmark svg{width:24px;height:24px}
+  .brandname{font-size:24px;font-weight:800;letter-spacing:-.01em;line-height:1.1}
+  .brandname span{color:var(--accent)}
+  .brandsub{font-size:13px;color:var(--muted);font-weight:600}
+  .kicker{display:inline-flex;align-items:center;gap:8px;font-size:12.5px;font-weight:700;
+    letter-spacing:.12em;text-transform:uppercase;color:var(--accent);margin-top:22px}
+  .kicker::before{content:"";width:9px;height:9px;border-radius:50%;background:var(--accent)}
+  h1{font-size:clamp(28px,5.4vw,44px);line-height:1.08;margin:10px 0 8px;font-weight:800;letter-spacing:-.01em}
+  h1 .thin{color:var(--muted);font-weight:600}
+  .lede{color:var(--muted);max-width:62ch;margin:0;font-size:16.5px}
+  .lede b{color:var(--ink)}
+
+  /* ---------- tabs ---------- */
+  .tabs{display:flex;gap:8px;margin:26px 0 18px;flex-wrap:wrap}
+  .tab{flex:1 1 150px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:12px;padding:12px 14px;text-align:left;transition:border-color .15s,background .15s}
+  .tab .t{display:block;font-weight:800;font-size:16px}
+  .tab .s{display:block;font-size:13px;color:var(--muted);margin-top:2px;font-weight:500}
+  .tab[aria-selected="true"]{border-color:var(--accent);background:var(--surface);
+    box-shadow:inset 0 0 0 1px var(--accent)}
+  .tab[aria-selected="true"] .t{color:var(--accent)}
+
+  .panel{display:none}
+  .panel.on{display:block}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;
+    padding:18px;box-shadow:var(--shadow)}
+  .card + .card{margin-top:16px}
+  h2{font-size:20px;margin:0 0 4px;font-weight:800}
+  h3{font-size:15.5px;margin:20px 0 8px;font-weight:800}
+  .sub{color:var(--muted);font-size:14.5px;margin:0 0 14px}
+  .sub b{color:var(--ink)}
+
+  /* ---------- video stage ---------- */
+  .stage{background:#000;border-radius:12px;overflow:hidden;aspect-ratio:16/9;
+    display:flex;align-items:center;justify-content:center;position:relative}
+  .stage video,.stage iframe{width:100%;height:100%;border:0;display:block;background:#000}
+  .stage .empty{color:#9a9a9a;text-align:center;padding:24px;font-size:14.5px;max-width:40ch}
+  .stage .recbadge{position:absolute;top:10px;left:10px;background:rgba(0,0,0,.72);color:#fff;
+    padding:5px 10px;border-radius:999px;font-size:12.5px;font-weight:700;display:none;align-items:center;gap:7px;z-index:3}
+  .stage .recbadge.live{display:inline-flex}
+  .stage .recbadge i{width:9px;height:9px;border-radius:50%;background:#ff4438;animation:blink 1s infinite}
+  @keyframes blink{50%{opacity:.25}}
+  @media (prefers-reduced-motion: reduce){.stage .recbadge i{animation:none}}
+
+  /* ---------- controls ---------- */
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .row + .row{margin-top:12px}
+  .btn{border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:10px;padding:10px 16px;font-weight:700;font-size:15px;display:inline-flex;
+    align-items:center;gap:8px;justify-content:center;text-decoration:none}
+  .btn:hover{border-color:var(--muted)}
+  .btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+  .btn.primary:hover{background:var(--accent-dark);border-color:var(--accent-dark)}
+  .btn.dark{background:var(--ink);border-color:var(--ink);color:var(--bg)}
+  .btn:disabled{opacity:.45;cursor:not-allowed}
+  .btn.small{min-height:38px;padding:6px 12px;font-size:13.5px;border-radius:8px}
+  .btn.danger{color:var(--accent);border-color:var(--accent)}
+  .grow{flex:1 1 auto}
+  .timer{font-size:26px;font-weight:700;letter-spacing:.02em}
+  .status{font-size:14px;color:var(--muted)}
+  .status.ok{color:var(--ok)} .status.warn{color:var(--warn)}
+
+  /* ---------- trim editor ---------- */
+  .trimwrap{margin-top:16px}
+  .track{position:relative;height:34px;background:var(--surface2);border-radius:8px;margin:26px 0 6px}
+  .track .fill{position:absolute;top:0;bottom:0;background:var(--accent);opacity:.28;border-radius:4px}
+  .track .playhead{position:absolute;top:-4px;bottom:-4px;width:2.5px;background:var(--ink);border-radius:2px}
+  .track input[type=range]{position:absolute;left:0;right:0;width:100%;margin:0;-webkit-appearance:none;appearance:none;
+    background:transparent;height:34px;min-height:34px;pointer-events:none}
+  .track input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;pointer-events:auto;width:20px;height:44px;
+    border-radius:6px;background:var(--accent);border:2.5px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.35);cursor:ew-resize}
+  .track input[type=range]::-moz-range-thumb{pointer-events:auto;width:18px;height:42px;border-radius:6px;
+    background:var(--accent);border:2.5px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.35);cursor:ew-resize}
+  .tfields{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-top:12px}
+  .field label{display:block;font-size:12.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:5px}
+  .field input,.field select{width:100%;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:9px;padding:9px 11px;font:inherit;font-size:15px}
+  .field input{font-family:"JetBrains Mono",monospace}
+  .presets{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .chipbtn{border:1.5px solid var(--line);background:var(--chip);color:var(--ink);border-radius:999px;
+    padding:6px 14px;font-weight:700;font-size:13.5px;min-height:38px}
+  .chipbtn:hover{border-color:var(--accent);color:var(--accent)}
+
+  /* ---------- markers & clips ---------- */
+  .marklist,.cliplist{display:flex;flex-direction:column;gap:10px;margin-top:12px}
+  .markitem,.clipitem{display:flex;gap:12px;align-items:center;background:var(--surface2);
+    border:1px solid var(--line);border-radius:12px;padding:10px 12px;flex-wrap:wrap}
+  .clipitem img{width:104px;height:59px;object-fit:cover;border-radius:7px;background:#000;flex:none}
+  .markitem .info,.clipitem .info{flex:1 1 180px;min-width:0}
+  .markitem .name,.clipitem .name{font-weight:800;font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .markitem .meta,.clipitem .meta{font-size:13px;color:var(--muted)}
+  .empty-note{border:1.5px dashed var(--line);border-radius:12px;padding:16px;text-align:center;color:var(--muted);font-size:14.5px}
+
+  /* ---------- progress ---------- */
+  .progress{display:none;margin-top:14px}
+  .progress.on{display:block}
+  .pbar{height:10px;background:var(--surface2);border-radius:99px;overflow:hidden}
+  .pbar i{display:block;height:100%;width:0%;background:var(--accent);transition:width .2s}
+  .ptext{font-size:13.5px;color:var(--muted);margin-top:6px}
+
+  /* ---------- misc ---------- */
+  .urlrow{display:flex;gap:10px;flex-wrap:wrap}
+  .urlrow input{flex:1 1 260px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);
+    border-radius:10px;padding:10px 13px;font:inherit;font-size:15px}
+  .note{border-radius:12px;padding:13px 15px;font-size:14.5px;margin-top:14px;background:var(--surface2);border:1px solid var(--line)}
+  .note b{color:var(--accent)}
+  ol.steps{margin:8px 0 0;padding-left:20px;color:var(--muted);font-size:14.5px}
+  ol.steps li{margin:4px 0} ol.steps b{color:var(--ink)}
+  .drop{border:2px dashed var(--line);border-radius:12px;padding:26px 16px;text-align:center;color:var(--muted);
+    font-size:15px;cursor:pointer}
+  .drop.over{border-color:var(--accent);color:var(--accent)}
+  .drop b{color:var(--ink)}
+  .kbd{font-family:"JetBrains Mono",monospace;font-size:12.5px;background:var(--surface2);border:1px solid var(--line);
+    border-bottom-width:2.5px;border-radius:6px;padding:1px 7px}
+
+  /* ---------- about ---------- */
+  .about-credit{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:14px;
+    padding-top:14px;border-top:1px solid var(--line);font-size:15px;color:var(--muted)}
+  .pclogo{display:inline-flex;align-items:center;gap:8px;text-decoration:none;font-weight:800;color:var(--ink)}
+  .pclogo:hover{color:var(--accent)}
+  .pclogo .pcmark{width:28px;height:28px;border-radius:8px;background:var(--accent);color:#fff;
+    display:inline-flex;align-items:center;justify-content:center;flex:none}
+  .pclogo .pcmark svg{width:16px;height:16px}
+  .pclogo .pcdomain{color:var(--accent)}
+
+  footer{margin-top:34px;color:var(--muted);font-size:13.5px;text-align:center}
+  .toast{position:fixed;left:50%;bottom:22px;transform:translateX(-50%) translateY(80px);background:var(--ink);color:var(--bg);
+    padding:11px 18px;border-radius:999px;font-weight:700;font-size:14.5px;box-shadow:var(--shadow);
+    transition:transform .25s;z-index:50;max-width:92vw;text-align:center}
+  .toast.on{transform:translateX(-50%) translateY(0)}
+  @media (max-width:640px){
+    .tfields{grid-template-columns:1fr 1fr}
+    .clipitem img{width:84px;height:47px}
+    .timer{font-size:21px}
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="top">
+    <div class="brand">
+      <span class="brandmark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 5.5v13l11-6.5-11-6.5Z" fill="currentColor"/></svg></span>
+      <div>
+        <div class="brandname">Post<span>Clip</span></div>
+        <div class="brandsub">by PostCora</div>
+      </div>
+    </div>
+    <span class="kicker">YouTube Streamer Tool</span>
+    <h1>Make clips, <span class="thin">in seconds.</span></h1>
+    <p class="lede">Mark a moment while your stream is live, or pick a <b>start–end time</b> from a past
+    stream or video and cut the clip — everything happens right in this browser, with no uploads
+    and no server. The finished clip downloads straight to your device, ready for Shorts, Reels and TikTok.</p>
+  </header>
+
+  <div class="tabs" role="tablist" aria-label="Clip mode">
+    <button class="tab" role="tab" id="tab-live" aria-selected="true" data-panel="panel-live">
+      <span class="t">🔴 Live Capture</span><span class="s">Record and mark moments while you stream</span>
+    </button>
+    <button class="tab" role="tab" id="tab-file" aria-selected="false" data-panel="panel-file">
+      <span class="t">🎬 Video File</span><span class="s">Cut a clip from a recorded stream or video by selecting a time range</span>
+    </button>
+    <button class="tab" role="tab" id="tab-yt" aria-selected="false" data-panel="panel-yt">
+      <span class="t">▶️ YouTube Link</span><span class="s">Pick a clip point from a VOD link</span>
+    </button>
+  </div>
+
+  <!-- ================= LIVE ================= -->
+  <section class="panel on" id="panel-live" role="tabpanel" aria-labelledby="tab-live">
+    <div class="card">
+      <h2>Live Capture — record your stream, mark the moments</h2>
+      <p class="sub">Select the <b>browser tab or screen</b> showing your live stream and the tool starts recording.
+      When a great moment happens, press <b>Mark Start / Mark End</b> — once the recording stops, every marked
+      section becomes its own clip, ready to download.</p>
+
+      <div class="stage" id="liveStage">
+        <div class="empty" id="liveEmpty">No capture is running yet.<br/>Use the button below to select the tab showing your stream.</div>
+        <video id="livePreview" autoplay muted playsinline style="display:none"></video>
+        <span class="recbadge" id="recBadge"><i></i> REC&nbsp;<span class="mono" id="recBadgeTime">00:00:00</span></span>
+      </div>
+
+      <div class="row" style="margin-top:16px">
+        <button class="btn primary" id="btnStartCap">⏺ Start capture</button>
+        <button class="btn danger" id="btnStopCap" disabled>⏹ Stop</button>
+        <span class="timer mono" id="liveTimer">00:00:00</span>
+        <span class="status" id="liveStatus">Ready — works best on desktop Chrome / Edge.</span>
+      </div>
+
+      <div class="row">
+        <button class="btn dark" id="btnMarkStart" disabled>⏮ Mark Start <span class="kbd">[</span></button>
+        <button class="btn dark" id="btnMarkEnd" disabled>Mark End ⏭ <span class="kbd">]</span></button>
+        <input id="markLabel" type="text" placeholder="Clip name (optional) — e.g. Funny moment"
+          style="flex:1 1 200px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:10px 13px;font:inherit;font-size:15px" />
+      </div>
+      <p class="status" id="markStatus"></p>
+
+      <h3>Marked moments</h3>
+      <div class="marklist" id="markList">
+        <div class="empty-note">No moments marked yet. Press Mark Start / End while recording.</div>
+      </div>
+    </div>
+
+    <div class="card" id="liveTrimCard" style="display:none">
+      <h2>Your recording is ready — cut your clips</h2>
+      <p class="sub">Your recording is loaded below. Turn a marked moment into a clip with one click,
+      or adjust the times yourself and cut a new clip.</p>
+      <div class="stage"><video id="liveVideo" controls playsinline></video></div>
+      <div id="liveTrimMount"></div>
+    </div>
+  </section>
+
+  <!-- ================= FILE ================= -->
+  <section class="panel" id="panel-file" role="tabpanel" aria-labelledby="tab-file">
+    <div class="card">
+      <h2>Video File — select a time, cut the clip</h2>
+      <p class="sub">Bring in your recorded stream or any video file (MP4, WebM, MOV…).
+      The file <b>never leaves your browser</b> — the cutting happens here too.</p>
+
+      <div class="drop" id="dropZone" tabindex="0" role="button" aria-label="Select a video file">
+        🎞️ <b>Drop a video file here</b> or click to select one
+        <div style="font-size:13px;margin-top:4px">A stream recording, a downloaded VOD — any video works</div>
+      </div>
+      <input type="file" id="fileInput" accept="video/*" hidden />
+
+      <div id="fileEditor" style="display:none;margin-top:18px">
+        <div class="stage"><video id="fileVideo" controls playsinline></video></div>
+        <div id="fileTrimMount"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= YOUTUBE ================= -->
+  <section class="panel" id="panel-yt" role="tabpanel" aria-labelledby="tab-yt">
+    <div class="card">
+      <h2>YouTube Link — pick a clip point from a VOD</h2>
+      <p class="sub">Paste the YouTube link of your finished stream or video. Play to the right spot in the
+      player, <b>set the Start / End</b>, then grab a share link, a timestamp link or the thumbnail —
+      or open YouTube's own <b>Create Clip</b>.</p>
+
+      <div class="urlrow">
+        <input id="ytUrl" type="url" inputmode="url" placeholder="https://www.youtube.com/watch?v=… or youtu.be/…" />
+        <button class="btn primary" id="btnLoadYt">Load video</button>
+      </div>
+      <p class="status warn" id="ytStatus"></p>
+
+      <div id="ytEditor" style="display:none;margin-top:14px">
+        <div class="stage"><div id="ytPlayer" style="width:100%;height:100%"></div></div>
+
+        <div class="tfields">
+          <div class="field"><label for="ytStart">Start time</label><input id="ytStart" class="mono" value="00:00:00" /></div>
+          <div class="field"><label for="ytEnd">End time</label><input id="ytEnd" class="mono" value="00:00:30" /></div>
+          <div class="field"><label for="ytDur">Clip length</label><input id="ytDur" class="mono" readonly value="30s" /></div>
+        </div>
+        <div class="row" style="margin-top:12px">
+          <button class="btn" id="btnYtSetStart">⏮ Start = current time</button>
+          <button class="btn" id="btnYtSetEnd">End = current time ⏭</button>
+          <button class="btn dark" id="btnYtPreview">▶ Preview clip (loop)</button>
+          <button class="btn" id="btnYtStopPreview">⏹ Stop preview</button>
+        </div>
+        <div class="presets">
+          <span style="font-size:13.5px;color:var(--muted);font-weight:700;align-self:center">Quick length:</span>
+          <button class="chipbtn" data-ytlen="15">15s</button>
+          <button class="chipbtn" data-ytlen="30">30s</button>
+          <button class="chipbtn" data-ytlen="60">60s</button>
+          <button class="chipbtn" data-ytlen="90">90s</button>
+        </div>
+
+        <h3>Get your clip</h3>
+        <div class="row">
+          <button class="btn primary" id="btnYtCopyTs">🔗 Copy timestamp link</button>
+          <button class="btn" id="btnYtCopyRange">Copy clip range link</button>
+          <a class="btn" id="btnYtOpenClip" href="#" target="_blank" rel="noopener">✂️ Open YouTube Create Clip</a>
+          <button class="btn" id="btnYtThumb">🖼️ Download thumbnail</button>
+        </div>
+
+        <div class="note">
+          <b>Want to download the clip as a file?</b> YouTube doesn't let browsers download video files
+          directly, so use this method instead — you'll get exactly the same result:
+          <ol class="steps">
+            <li>Note the <b>Start time</b> you set above.</li>
+            <li>Go to the <b>Live Capture</b> tab, capture the tab playing this video, and play the video from the start time.</li>
+            <li>Press <b>Mark Start / Mark End</b> — your clip file (WebM) will be ready to download.</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CLIPS LIBRARY ================= -->
+  <div class="card" style="margin-top:16px">
+    <h2>📁 My Clips <span style="color:var(--muted);font-size:14px;font-weight:600">(this session's — they clear when the page closes)</span></h2>
+    <p class="sub">Every clip you cut lands here. <b>Download</b> the ones you like and upload them to Shorts / Reels / TikTok.
+    Want a vertical clip? Choose the <b>9:16 Shorts</b> format when you cut it.</p>
+    <div class="cliplist" id="clipList">
+      <div class="empty-note">No clips yet. Cut your first clip using any mode above. 🎬</div>
+    </div>
+  </div>
+
+  <!-- ================= ABOUT ================= -->
+  <div class="card" style="margin-top:16px">
+    <h2>About PostClip</h2>
+    <p class="sub" style="margin-bottom:0">PostClip is a free, browser-based clipping tool for YouTube streamers.
+    Record a live stream and mark the best moments as they happen, cut clips from a recorded video file,
+    or pick clip points from a YouTube VOD link — then export in 9:16, 1:1 or 16:9, ready for
+    Shorts, Reels and TikTok. Everything runs locally in your browser; no video is ever uploaded to a server.</p>
+    <div class="about-credit">
+      <span>created by</span>
+      <a class="pclogo" href="https://postcora.com" target="_blank" rel="noopener" aria-label="PostCora.com">
+        <span class="pcmark" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none"><path d="M7 4h6.2a4.8 4.8 0 0 1 0 9.6H9.5v6.4H7V4Zm2.5 2.4v4.8h3.6a2.4 2.4 0 0 0 0-4.8H9.5Z" fill="currentColor"/></svg></span>
+        <span>PostCora<span class="pcdomain">.com</span></span>
+      </a>
+    </div>
+  </div>
+
+  <footer>
+    All processing happens in your browser — no video is uploaded to any server.<br/>
+    Make clips from your own streams and videos; for other people's content, always get their permission first.
+  </footer>
+</div>
+
+<div class="toast" id="toast" role="status"></div>
+
+<script src="https://www.youtube.com/iframe_api"></script>
+<script>
+(function(){
+"use strict";
+/* ================= helpers ================= */
+var $ = function(id){ return document.getElementById(id); };
+function pad(n){ return (n<10?"0":"")+n; }
+function fmt(sec){
+  sec = Math.max(0, Math.floor(sec||0));
+  var h = Math.floor(sec/3600), m = Math.floor((sec%3600)/60), s = sec%60;
+  return pad(h)+":"+pad(m)+":"+pad(s);
+}
+function fmtShort(sec){
+  sec = Math.max(0, Math.round(sec||0));
+  if(sec<60) return sec+"s";
+  return Math.floor(sec/60)+"m "+pad(sec%60)+"s";
+}
+function parseTime(str){
+  if(str==null) return 0;
+  str = (""+str).trim(); if(!str) return 0;
+  if(/^\d+(\.\d+)?$/.test(str)) return parseFloat(str);
+  var parts = str.split(":").map(function(p){ return parseFloat(p)||0; });
+  var t=0; for(var i=0;i<parts.length;i++) t = t*60 + parts[i];
+  return t;
+}
+function humanSize(b){
+  if(!b) return "0 KB";
+  if(b<1024*1024) return Math.round(b/1024)+" KB";
+  return (b/(1024*1024)).toFixed(1)+" MB";
+}
+var toastTimer=null;
+function toast(msg){
+  var t=$("toast"); t.textContent=msg; t.classList.add("on");
+  clearTimeout(toastTimer); toastTimer=setTimeout(function(){ t.classList.remove("on"); },2800);
+}
+function copyText(txt, okMsg){
+  function done(){ toast(okMsg||"Copied ✅"); }
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done, function(){ fallback(); });
+  } else fallback();
+  function fallback(){
+    var ta=document.createElement("textarea"); ta.value=txt; document.body.appendChild(ta);
+    ta.select(); try{ document.execCommand("copy"); done(); }catch(e){ toast("Copy failed — here's the link: "+txt); }
+    document.body.removeChild(ta);
+  }
+}
+function downloadBlob(blob, name){
+  var a=document.createElement("a");
+  a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); document.body.removeChild(a); },4000);
+}
+function slugName(s){
+  s=(s||"clip").toLowerCase().replace(/[^a-z0-9\u0600-\u06FF]+/g,"-").replace(/^-+|-+$/g,"");
+  return s||"clip";
+}
+
+/* ================= tabs ================= */
+var tabs=document.querySelectorAll(".tab");
+tabs.forEach(function(tab){
+  tab.addEventListener("click", function(){
+    tabs.forEach(function(t){ t.setAttribute("aria-selected","false"); });
+    tab.setAttribute("aria-selected","true");
+    document.querySelectorAll(".panel").forEach(function(p){ p.classList.remove("on"); });
+    $(tab.getAttribute("data-panel")).classList.add("on");
+  });
+});
+
+/* ================= clips library ================= */
+var clipSeq=0;
+function addClipToLibrary(blob, name, durationSec, thumbUrl){
+  clipSeq++;
+  var list=$("clipList");
+  var empty=list.querySelector(".empty-note"); if(empty) empty.remove();
+  var url=URL.createObjectURL(blob);
+  var ext = blob.type.indexOf("mp4")>-1 ? "mp4" : "webm";
+  var item=document.createElement("div"); item.className="clipitem";
+  var img=document.createElement("img"); img.alt="Clip thumbnail"; if(thumbUrl) img.src=thumbUrl;
+  var info=document.createElement("div"); info.className="info";
+  var nm=document.createElement("div"); nm.className="name"; nm.textContent=name;
+  var meta=document.createElement("div"); meta.className="meta";
+  meta.textContent=fmtShort(durationSec)+" • "+humanSize(blob.size)+" • "+ext.toUpperCase();
+  info.appendChild(nm); info.appendChild(meta);
+  var play=document.createElement("a"); play.className="btn small"; play.textContent="▶ Preview";
+  play.href=url; play.target="_blank"; play.rel="noopener";
+  var dl=document.createElement("button"); dl.className="btn small primary"; dl.textContent="⬇ Download";
+  dl.addEventListener("click", function(){ downloadBlob(blob, slugName(name)+"."+ext); });
+  var del=document.createElement("button"); del.className="btn small"; del.textContent="🗑";
+  del.setAttribute("aria-label","Delete clip");
+  del.addEventListener("click", function(){ URL.revokeObjectURL(url); item.remove();
+    if(!list.children.length) list.innerHTML='<div class="empty-note">No clips yet. Cut your first clip using any mode above. 🎬</div>'; });
+  item.appendChild(img); item.appendChild(info); item.appendChild(play); item.appendChild(dl); item.appendChild(del);
+  list.prepend(item);
+  toast("Clip is ready — find it in My Clips below ✅");
+}
+
+/* capture a thumbnail frame from a blob URL at time t */
+function grabThumb(url, t){
+  return new Promise(function(resolve){
+    var v=document.createElement("video");
+    v.muted=true; v.playsInline=true; v.preload="auto"; v.src=url;
+    v.addEventListener("loadeddata", function(){ try{ v.currentTime=Math.min(t, (v.duration||1)-0.1); }catch(e){} });
+    v.addEventListener("seeked", function(){
+      try{
+        var c=document.createElement("canvas");
+        var scale=320/(v.videoWidth||320);
+        c.width=320; c.height=Math.round((v.videoHeight||180)*scale);
+        c.getContext("2d").drawImage(v,0,0,c.width,c.height);
+        resolve(c.toDataURL("image/jpeg",0.7));
+      }catch(e){ resolve(null); }
+    });
+    v.addEventListener("error", function(){ resolve(null); });
+    setTimeout(function(){ resolve(null); },3500);
+  });
+}
+
+/* ================= trim editor (shared) ================= */
+/* Builds a trim UI inside mountEl bound to a <video>. onExport(start,end,aspect,name) */
+function buildTrimmer(mount, video, opts){
+  opts = opts||{};
+  mount.innerHTML =
+    '<div class="trimwrap">'+
+      '<div class="track">'+
+        '<div class="fill"></div><div class="playhead" style="left:0%"></div>'+
+        '<input type="range" class="rEnd" min="0" max="1000" value="1000" aria-label="End handle" />'+
+        '<input type="range" class="rStart" min="0" max="1000" value="0" aria-label="Start handle" />'+
+      '</div>'+
+      '<div class="tfields">'+
+        '<div class="field"><label>Start time</label><input class="fStart mono" value="00:00:00" /></div>'+
+        '<div class="field"><label>End time</label><input class="fEnd mono" value="00:00:00" /></div>'+
+        '<div class="field"><label>Clip length</label><input class="fDur mono" readonly value="0s" /></div>'+
+      '</div>'+
+      '<div class="tfields">'+
+        '<div class="field"><label>Format</label><select class="fAspect">'+
+          '<option value="orig">Original (as-is)</option>'+
+          '<option value="9:16">9:16 — Shorts / Reels / TikTok</option>'+
+          '<option value="1:1">1:1 — Square post</option>'+
+          '<option value="16:9">16:9 — YouTube</option>'+
+        '</select></div>'+
+        '<div class="field" style="grid-column:span 2"><label>Clip name</label><input class="fName" type="text" placeholder="e.g. Best moment" /></div>'+
+      '</div>'+
+      '<div class="presets">'+
+        '<button class="chipbtn" data-act="setStart">⏮ Start = current frame</button>'+
+        '<button class="chipbtn" data-act="setEnd">End = current frame ⏭</button>'+
+        '<button class="chipbtn" data-len="15">15s clip</button>'+
+        '<button class="chipbtn" data-len="30">30s clip</button>'+
+        '<button class="chipbtn" data-len="60">60s clip</button>'+
+        '<button class="chipbtn" data-act="preview">▶ Preview selection</button>'+
+      '</div>'+
+      '<div class="row" style="margin-top:14px">'+
+        '<button class="btn primary grow" data-act="export">✂️ Cut clip</button>'+
+      '</div>'+
+      '<div class="progress"><div class="pbar"><i></i></div><div class="ptext mono"></div></div>'+
+    '</div>';
+
+  var rStart=mount.querySelector(".rStart"), rEnd=mount.querySelector(".rEnd"),
+      fill=mount.querySelector(".fill"), head=mount.querySelector(".playhead"),
+      fStart=mount.querySelector(".fStart"), fEnd=mount.querySelector(".fEnd"),
+      fDur=mount.querySelector(".fDur"), fAspect=mount.querySelector(".fAspect"),
+      fName=mount.querySelector(".fName"),
+      prog=mount.querySelector(".progress"), pfill=mount.querySelector(".pbar i"),
+      ptext=mount.querySelector(".ptext");
+  var dur=0, start=0, end=0, previewing=false;
+
+  function sync(fromRange){
+    if(!dur) return;
+    if(fromRange==="start") start = (rStart.value/1000)*dur;
+    if(fromRange==="end") end = (rEnd.value/1000)*dur;
+    if(start>end-0.2){ if(fromRange==="start") start=Math.max(0,end-0.2); else end=Math.min(dur,start+0.2); }
+    rStart.value=Math.round((start/dur)*1000); rEnd.value=Math.round((end/dur)*1000);
+    fill.style.left=((start/dur)*100)+"%"; fill.style.width=(((end-start)/dur)*100)+"%";
+    fStart.value=fmt(start); fEnd.value=fmt(end); fDur.value=fmtShort(end-start);
+  }
+  rStart.addEventListener("input", function(){ sync("start"); try{video.currentTime=start;}catch(e){} });
+  rEnd.addEventListener("input", function(){ sync("end"); try{video.currentTime=Math.max(0,end-0.05);}catch(e){} });
+  fStart.addEventListener("change", function(){ start=Math.min(Math.max(0,parseTime(fStart.value)), dur); sync(); });
+  fEnd.addEventListener("change", function(){ end=Math.min(Math.max(0,parseTime(fEnd.value)), dur); sync(); });
+
+  video.addEventListener("loadedmetadata", function(){
+    dur=video.duration||0; start=0; end=dur; sync();
+    if(opts.onReady) opts.onReady(dur);
+  });
+  video.addEventListener("timeupdate", function(){
+    if(dur) head.style.left=((video.currentTime/dur)*100)+"%";
+    if(previewing && video.currentTime>=end){ video.currentTime=start; }
+  });
+  video.addEventListener("pause", function(){ previewing=false; });
+
+  mount.querySelectorAll("[data-len]").forEach(function(b){
+    b.addEventListener("click", function(){
+      var len=parseFloat(b.getAttribute("data-len"));
+      start=video.currentTime||0; end=Math.min(dur, start+len);
+      if(end-start<len) start=Math.max(0,end-len);
+      sync();
+    });
+  });
+  mount.querySelector('[data-act="setStart"]').addEventListener("click", function(){ start=video.currentTime||0; sync(); });
+  mount.querySelector('[data-act="setEnd"]').addEventListener("click", function(){ end=video.currentTime||0; sync(); });
+  mount.querySelector('[data-act="preview"]').addEventListener("click", function(){
+    previewing=true; video.currentTime=start; video.play();
+  });
+  mount.querySelector('[data-act="export"]').addEventListener("click", function(){
+    if(end-start<0.5){ toast("That clip is too short — select at least 1 second."); return; }
+    var name=fName.value.trim()||opts.defaultName||"Clip";
+    exportSegment(video, start, end, fAspect.value, name, prog, pfill, ptext);
+  });
+
+  return {
+    setRange:function(s,e){ start=s; end=e; sync(); },
+    getRange:function(){ return {start:start,end:end}; },
+    setName:function(n){ fName.value=n; },
+    refresh:function(){ dur=video.duration||dur; if(end>dur) end=dur; sync(); }
+  };
+}
+
+/* ---- the actual cutter: canvas + MediaRecorder, fully in-browser ---- */
+function pickMime(){
+  var cands=["video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm","video/mp4"];
+  if(window.MediaRecorder){
+    for(var i=0;i<cands.length;i++) if(MediaRecorder.isTypeSupported(cands[i])) return cands[i];
+  }
+  return "";
+}
+function exportSegment(srcVideo, start, end, aspect, name, prog, pfill, ptext){
+  var mime=pickMime();
+  if(!mime){ toast("Clip export isn't supported in this browser — try Chrome or Edge."); return; }
+  var srcUrl=srcVideo.currentSrc||srcVideo.src;
+  var v=document.createElement("video");
+  v.muted=false; v.playsInline=true; v.preload="auto"; v.src=srcUrl;
+  prog.classList.add("on"); pfill.style.width="2%";
+  ptext.textContent="Rendering your clip… 0% (clips render in real time, hang tight)";
+
+  v.addEventListener("loadedmetadata", function(){
+    var vw=v.videoWidth||1280, vh=v.videoHeight||720;
+    var ow=vw, oh=vh;
+    if(aspect==="9:16"){ oh=1280; ow=Math.round(oh*9/16); }
+    else if(aspect==="1:1"){ ow=960; oh=960; }
+    else if(aspect==="16:9"){ ow=1280; oh=720; }
+    else { var cap=1280/Math.max(vw,vh); if(cap<1){ ow=Math.round(vw*cap); oh=Math.round(vh*cap); } }
+    ow-=ow%2; oh-=oh%2;
+    var canvas=document.createElement("canvas"); canvas.width=ow; canvas.height=oh;
+    var ctx=canvas.getContext("2d");
+    var cStream=canvas.captureStream(30);
+    var tracks=cStream.getVideoTracks().slice();
+    try{
+      var aStream=v.captureStream ? v.captureStream() : (v.mozCaptureStream ? v.mozCaptureStream() : null);
+      if(aStream) aStream.getAudioTracks().forEach(function(t){ tracks.push(t); });
+    }catch(e){}
+    var stream=new MediaStream(tracks);
+    var rec;
+    try{ rec=new MediaRecorder(stream,{mimeType:mime, videoBitsPerSecond:6*1000*1000}); }
+    catch(e){ prog.classList.remove("on"); toast("The recorder couldn't start — please try again."); return; }
+    var chunks=[];
+    rec.ondataavailable=function(ev){ if(ev.data && ev.data.size) chunks.push(ev.data); };
+    var raf=null, progInt=null, done=false;
+    function draw(){
+      var scale=Math.max(ow/vw, oh/vh);
+      var dw=vw*scale, dh=vh*scale;
+      ctx.fillStyle="#000"; ctx.fillRect(0,0,ow,oh);
+      ctx.drawImage(v,(ow-dw)/2,(oh-dh)/2,dw,dh);
+      raf=requestAnimationFrame(draw);
+    }
+    function finish(){
+      if(done) return; done=true;
+      cancelAnimationFrame(raf); clearInterval(progInt);
+      try{ v.pause(); }catch(e){}
+      if(rec.state!=="inactive") rec.stop();
+    }
+    rec.onstop=function(){
+      prog.classList.remove("on");
+      var blob=new Blob(chunks,{type:mime.split(";")[0]});
+      grabThumb(srcUrl, start+Math.min(1,(end-start)/2)).then(function(thumb){
+        addClipToLibrary(blob, name, end-start, thumb);
+      });
+    };
+    v.currentTime=start;
+    v.addEventListener("seeked", function onSeek(){
+      v.removeEventListener("seeked", onSeek);
+      rec.start(250); draw();
+      v.play();
+      progInt=setInterval(function(){
+        var p=Math.min(100, ((v.currentTime-start)/(end-start))*100);
+        pfill.style.width=p+"%";
+        ptext.textContent="Rendering your clip… "+Math.round(p)+"%  •  "+fmt(v.currentTime-start)+" / "+fmt(end-start);
+        if(v.currentTime>=end || v.ended) finish();
+      },120);
+    });
+  });
+  v.addEventListener("error", function(){
+    prog.classList.remove("on"); toast("The video couldn't be loaded — the clip couldn't be cut.");
+  });
+}
+
+/* ================= LIVE CAPTURE ================= */
+var capStream=null, capRecorder=null, capChunks=[], capStartAt=0, capTimerInt=null,
+    capBlobUrl=null, pendingMarkStart=null, marks=[], liveTrimmer=null;
+
+function capElapsed(){
+  return capStartAt ? (Date.now()-capStartAt)/1000 : 0;
+}
+function setLiveStatus(msg, cls){ var s=$("liveStatus"); s.textContent=msg; s.className="status"+(cls?" "+cls:""); }
+
+$("btnStartCap").addEventListener("click", function(){
+  if(!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia){
+    setLiveStatus("Screen capture isn't supported on this browser/device — use desktop Chrome or Edge.","warn");
+    toast("Screen capture isn't supported on this device.");
+    return;
+  }
+  navigator.mediaDevices.getDisplayMedia({video:{frameRate:30}, audio:true}).then(function(stream){
+    capStream=stream; capChunks=[]; marks=[]; pendingMarkStart=null; renderMarks();
+    $("liveEmpty").style.display="none";
+    var pv=$("livePreview"); pv.style.display="block"; pv.srcObject=stream;
+    capRecorder=new MediaRecorder(stream,{mimeType:pickMime()||undefined, videoBitsPerSecond:8*1000*1000});
+    capRecorder.ondataavailable=function(ev){ if(ev.data && ev.data.size) capChunks.push(ev.data); };
+    capRecorder.onstop=onCaptureStop;
+    stream.getVideoTracks()[0].addEventListener("ended", function(){ if(capRecorder && capRecorder.state!=="inactive") capRecorder.stop(); });
+    capRecorder.start(500);
+    capStartAt=Date.now();
+    $("recBadge").classList.add("live");
+    $("btnStartCap").disabled=true; $("btnStopCap").disabled=false;
+    $("btnMarkStart").disabled=false; $("btnMarkEnd").disabled=false;
+    setLiveStatus("Recording — when a great moment happens, press Mark Start / End.","ok");
+    capTimerInt=setInterval(function(){
+      var t=fmt(capElapsed());
+      $("liveTimer").textContent=t; $("recBadgeTime").textContent=t;
+    },250);
+  }).catch(function(){
+    setLiveStatus("Capture was cancelled or permission wasn't granted. Please try again.","warn");
+  });
+});
+
+$("btnStopCap").addEventListener("click", function(){
+  if(capRecorder && capRecorder.state!=="inactive") capRecorder.stop();
+});
+
+function onCaptureStop(){
+  clearInterval(capTimerInt);
+  $("recBadge").classList.remove("live");
+  $("btnStartCap").disabled=false; $("btnStopCap").disabled=true;
+  $("btnMarkStart").disabled=true; $("btnMarkEnd").disabled=true;
+  if(capStream) capStream.getTracks().forEach(function(t){ t.stop(); });
+  $("livePreview").style.display="none"; $("livePreview").srcObject=null;
+  $("liveEmpty").style.display="block";
+  $("liveEmpty").innerHTML="Recording complete ✅<br/>Cut your clips in the section below.";
+  var type=(capRecorder && capRecorder.mimeType ? capRecorder.mimeType.split(";")[0] : "video/webm");
+  var blob=new Blob(capChunks,{type:type});
+  if(capBlobUrl) URL.revokeObjectURL(capBlobUrl);
+  capBlobUrl=URL.createObjectURL(blob);
+  setLiveStatus("Recording is ready ("+humanSize(blob.size)+") — cut your clips below.","ok");
+  $("liveTrimCard").style.display="block";
+  var lv=$("liveVideo"); lv.src=capBlobUrl;
+  if(!liveTrimmer){
+    liveTrimmer=buildTrimmer($("liveTrimMount"), lv, {defaultName:"Live clip"});
+  } else {
+    lv.addEventListener("loadedmetadata", function(){ liveTrimmer.refresh(); }, {once:true});
+  }
+  renderMarks();
+  $("liveTrimCard").scrollIntoView({behavior:"smooth", block:"start"});
+}
+
+$("btnMarkStart").addEventListener("click", function(){
+  pendingMarkStart=capElapsed();
+  $("markStatus").textContent="Start marked at "+fmt(pendingMarkStart)+" — now waiting for the end mark…";
+  $("markStatus").className="status ok";
+});
+$("btnMarkEnd").addEventListener("click", function(){
+  var end=capElapsed();
+  if(pendingMarkStart==null){ toast("Press Mark Start first."); return; }
+  if(end-pendingMarkStart<1){ toast("That clip is too short — mark a slightly longer moment."); pendingMarkStart=null; return; }
+  var label=$("markLabel").value.trim()||("Moment "+(marks.length+1));
+  marks.push({start:pendingMarkStart, end:end, label:label});
+  $("markLabel").value=""; pendingMarkStart=null;
+  $("markStatus").textContent="Moment saved: "+fmt(marks[marks.length-1].start)+" → "+fmt(end);
+  $("markStatus").className="status ok";
+  renderMarks();
+});
+document.addEventListener("keydown", function(e){
+  if(e.target.tagName==="INPUT"||e.target.tagName==="TEXTAREA"||e.target.tagName==="SELECT") return;
+  if(capRecorder && capRecorder.state==="recording"){
+    if(e.key==="[") $("btnMarkStart").click();
+    if(e.key==="]") $("btnMarkEnd").click();
+  }
+});
+
+function renderMarks(){
+  var list=$("markList");
+  if(!marks.length){
+    list.innerHTML='<div class="empty-note">No moments marked yet. Press Mark Start / End while recording.</div>';
+    return;
+  }
+  list.innerHTML="";
+  marks.forEach(function(m, idx){
+    var item=document.createElement("div"); item.className="markitem";
+    var info=document.createElement("div"); info.className="info";
+    var nm=document.createElement("div"); nm.className="name"; nm.textContent=m.label;
+    var meta=document.createElement("div"); meta.className="meta mono";
+    meta.textContent=fmt(m.start)+" → "+fmt(m.end)+"  •  "+fmtShort(m.end-m.start);
+    info.appendChild(nm); info.appendChild(meta);
+    item.appendChild(info);
+    var btn=document.createElement("button"); btn.className="btn small primary"; btn.textContent="✂️ Make a clip from this moment";
+    btn.disabled=!capBlobUrl;
+    if(!capBlobUrl) btn.title="Available once the recording stops";
+    btn.addEventListener("click", function(){
+      if(!capBlobUrl) return;
+      var lv=$("liveVideo");
+      lv.currentTime=m.start;
+      if(liveTrimmer){ liveTrimmer.setRange(m.start,m.end); liveTrimmer.setName(m.label); }
+      $("liveTrimCard").scrollIntoView({behavior:"smooth", block:"center"});
+      toast("Range is set — now press 'Cut clip' ✂️");
+    });
+    var del=document.createElement("button"); del.className="btn small"; del.textContent="🗑";
+    del.setAttribute("aria-label","Delete mark");
+    del.addEventListener("click", function(){ marks.splice(idx,1); renderMarks(); });
+    item.appendChild(btn); item.appendChild(del);
+    list.appendChild(item);
+  });
+}
+
+/* ================= FILE MODE ================= */
+var fileTrimmer=null, fileBlobUrl=null;
+var drop=$("dropZone"), finput=$("fileInput");
+drop.addEventListener("click", function(){ finput.click(); });
+drop.addEventListener("keydown", function(e){ if(e.key==="Enter"||e.key===" "){ e.preventDefault(); finput.click(); } });
+["dragover","dragenter"].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.add("over"); }); });
+["dragleave","drop"].forEach(function(ev){ drop.addEventListener(ev, function(e){ e.preventDefault(); drop.classList.remove("over"); }); });
+drop.addEventListener("drop", function(e){
+  var f=e.dataTransfer.files && e.dataTransfer.files[0];
+  if(f) loadFile(f);
+});
+finput.addEventListener("change", function(){ if(finput.files[0]) loadFile(finput.files[0]); });
+
+function loadFile(f){
+  if(fileBlobUrl) URL.revokeObjectURL(fileBlobUrl);
+  fileBlobUrl=URL.createObjectURL(f);
+  $("fileEditor").style.display="block";
+  var v=$("fileVideo"); v.src=fileBlobUrl;
+  drop.querySelector("b").textContent="✔ "+f.name;
+  if(!fileTrimmer){
+    fileTrimmer=buildTrimmer($("fileTrimMount"), v, {defaultName:f.name.replace(/\.[^.]+$/,"")});
+  } else {
+    v.addEventListener("loadedmetadata", function(){ fileTrimmer.refresh(); }, {once:true});
+  }
+  toast("Video loaded — now select a time range 🎬");
+}
+
+/* ================= YOUTUBE MODE ================= */
+var ytPlayer=null, ytId=null, ytReady=false, ytPreviewInt=null;
+window.onYouTubeIframeAPIReady=function(){
+  ytReady=true;
+};
+function ytParseId(url){
+  if(!url) return null;
+  url=url.trim();
+  var m=url.match(/(?:youtube\.com\/(?:watch\?v=|live\/|shorts\/|embed\/)|youtu\.be\/)([A-Za-z0-9_-]{11})/);
+  if(m) return m[1];
+  if(/^[A-Za-z0-9_-]{11}$/.test(url)) return url;
+  return null;
+}
+$("btnLoadYt").addEventListener("click", function(){
+  var id=ytParseId($("ytUrl").value);
+  if(!id){ $("ytStatus").textContent="That link couldn't be read — paste a valid YouTube link (watch, live, shorts or youtu.be)."; return; }
+  ytId=id; $("ytStatus").textContent="";
+  $("ytEditor").style.display="block";
+  function create(){
+    if(ytPlayer && ytPlayer.loadVideoById){ ytPlayer.loadVideoById(id); return; }
+    ytPlayer=new YT.Player("ytPlayer",{
+      videoId:id,
+      playerVars:{rel:0, playsinline:1},
+      events:{ onReady:function(){ try{ var d=ytPlayer.getDuration(); if(d) $("ytEnd").value=fmt(Math.min(30,d)); ytDurUpdate(); }catch(e){} } }
+    });
+  }
+  if(window.YT && YT.Player) create();
+  else {
+    var tries=0;
+    var iv=setInterval(function(){
+      tries++;
+      if(window.YT && YT.Player){ clearInterval(iv); create(); }
+      else if(tries>40){ clearInterval(iv); $("ytStatus").textContent="The YouTube player couldn't load — check your connection and try again."; }
+    },250);
+  }
+});
+function ytNow(){
+  try{ return ytPlayer && ytPlayer.getCurrentTime ? ytPlayer.getCurrentTime() : 0; }catch(e){ return 0; }
+}
+function ytDurUpdate(){
+  var s=parseTime($("ytStart").value), e=parseTime($("ytEnd").value);
+  $("ytDur").value=fmtShort(Math.max(0,e-s));
+}
+$("ytStart").addEventListener("change", ytDurUpdate);
+$("ytEnd").addEventListener("change", ytDurUpdate);
+$("btnYtSetStart").addEventListener("click", function(){ $("ytStart").value=fmt(ytNow()); ytDurUpdate(); });
+$("btnYtSetEnd").addEventListener("click", function(){ $("ytEnd").value=fmt(ytNow()); ytDurUpdate(); });
+document.querySelectorAll("[data-ytlen]").forEach(function(b){
+  b.addEventListener("click", function(){
+    var len=parseFloat(b.getAttribute("data-ytlen"));
+    var s=ytNow(); $("ytStart").value=fmt(s); $("ytEnd").value=fmt(s+len); ytDurUpdate();
+    toast("Clip point set to "+len+"s — check it with Preview.");
+  });
+});
+$("btnYtPreview").addEventListener("click", function(){
+  if(!ytPlayer || !ytPlayer.seekTo) return;
+  var s=parseTime($("ytStart").value), e=parseTime($("ytEnd").value);
+  ytPlayer.seekTo(s, true); ytPlayer.playVideo();
+  clearInterval(ytPreviewInt);
+  ytPreviewInt=setInterval(function(){
+    if(ytNow()>=e) ytPlayer.seekTo(s, true);
+  },300);
+  toast("Clip preview is looping ▶");
+});
+$("btnYtStopPreview").addEventListener("click", function(){
+  clearInterval(ytPreviewInt);
+  if(ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+});
+$("btnYtCopyTs").addEventListener("click", function(){
+  if(!ytId) return;
+  var s=Math.floor(parseTime($("ytStart").value));
+  copyText("https://youtu.be/"+ytId+"?t="+s, "Timestamp link copied 🔗");
+});
+$("btnYtCopyRange").addEventListener("click", function(){
+  if(!ytId) return;
+  var s=Math.floor(parseTime($("ytStart").value)), e=Math.floor(parseTime($("ytEnd").value));
+  copyText("https://www.youtube.com/watch?v="+ytId+"&t="+s+"s  (clip: "+fmt(s)+" → "+fmt(e)+", length "+fmtShort(e-s)+")",
+    "Clip range copied 🔗");
+});
+$("btnYtOpenClip").addEventListener("click", function(e){
+  if(!ytId){ e.preventDefault(); return; }
+  $("btnYtOpenClip").href="https://www.youtube.com/watch?v="+ytId;
+  toast("The video will open — use the ✂ Clip button there to make YouTube's official clip.");
+});
+$("btnYtThumb").addEventListener("click", function(){
+  if(!ytId) return;
+  var url="https://i.ytimg.com/vi/"+ytId+"/maxresdefault.jpg";
+  fetch(url).then(function(r){ return r.blob(); }).then(function(b){
+    downloadBlob(b, "thumbnail-"+ytId+".jpg"); toast("Thumbnail downloaded 🖼️");
+  }).catch(function(){ window.open(url,"_blank"); });
+});
+})();
+</script>
+</body>
+</html>
